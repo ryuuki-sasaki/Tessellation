@@ -1,0 +1,51 @@
+//=====================================
+//制作者：佐々木隆貴
+//日付：2016/5/12
+//=====================================
+#version 430
+
+layout(vertices=16) out;	//パッチ中の頂点数
+
+uniform int minTessLevel;	//最小テッセレーションレベル
+uniform int maxTessLevel;	//最大テッセレーションレベル
+uniform float minDepth;		//テッセレーションレベルが最小になるカメラからの最大距離
+uniform float maxDepth;		//テッセレーションレベルが最大になるカメラからの最小距離
+
+uniform mat4 modelViewMatrix;
+uniform mat3 normalMatrix;
+
+//入力変数
+in vec3 normal;
+
+//=====================================
+//テッセレーションレベルの計算
+//=====================================
+float CalcTessLevel()
+{	
+	//カメラ座標の位置と法線
+	vec4 p = modelViewMatrix * gl_in[gl_InvocationID].gl_Position;
+	vec3 n = normalize(normalMatrix * normal);	
+	vec3 toNormal = normalize(n.xyz - p.xyz);
+
+	//0と1の間にスケールしたカメラからの距離
+	float depth = clamp((abs(p.z) - minDepth) / (maxDepth - minDepth), 0.0, 1.0);
+	//min/max間テッセレーションレベルを補間
+	return mix(maxTessLevel, minTessLevel, depth) * ((1-depth) + abs(dot(toNormal, n)));
+}
+
+void main()
+{
+	//min/max間テッセレーションレベルを補間
+	float tessLevel = CalcTessLevel();
+
+	gl_TessLevelOuter[0] = float(tessLevel);
+	gl_TessLevelOuter[1] = float(tessLevel);
+	gl_TessLevelOuter[2] = float(tessLevel);
+	gl_TessLevelOuter[3] = float(tessLevel);
+
+	gl_TessLevelInner[0] = float(tessLevel);
+	gl_TessLevelInner[1] = float(tessLevel);
+	
+	//頂点位置をそのまま渡す
+	gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
+}
